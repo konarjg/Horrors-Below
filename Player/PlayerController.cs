@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityStandardAssets.Characters.FirstPerson;
 using Random = UnityEngine.Random;
@@ -58,6 +59,27 @@ public class PlayerController : MonoBehaviour
     private bool IsSprinting = false;
     private bool SprintOnCooldown;
 
+    private void Hallucinate()
+    {
+
+    }
+
+    private void HandleShooting()
+    {
+        if (Input.GetMouseButtonDown(0))
+        {
+            var ray = new Ray(transform.position, transform.forward * 10f); //TODO Range based on weapon
+            var hit = new RaycastHit();
+            
+            if (Physics.Raycast(ray, out hit))
+            {
+                if (hit.collider.tag == "Enemy")
+                    Debug.LogError("ENEMY HIT");
+            }
+
+            //TODO ammunition decrease and condition, shot effects and sound
+        }
+    }
 
     private void HandleSprint()
     {
@@ -81,12 +103,38 @@ public class PlayerController : MonoBehaviour
         CurrentStats.Stamina = Mathf.Clamp(CurrentStats.Stamina, 0f, Stats.MaxStamina);
     }
 
+    private void HandleSanity()
+    {
+        CurrentStats.Sanity -= Stats.SanityLoss * Time.deltaTime;
+
+        if (CurrentStats.Sanity < 0.5f * Stats.MaxSanity)
+            Hallucinate();
+
+        CurrentStats.Sanity = Mathf.Clamp(CurrentStats.Sanity, 0f, Stats.MaxSanity);
+    }
+
+    private void OnApplicationQuit()
+    {
+        if (!Directory.Exists(Application.dataPath + "/Save"))
+            Directory.CreateDirectory(Application.dataPath + "/Save");
+
+        PlayerFile.Save(CurrentStats, Application.dataPath + "/Save/Player.ini");
+    }
+
     private void Start()
     {
         Movement.Init(gameObject);
         MouseLook.Init(transform, Camera.main.transform);
 
-        CurrentStats.Stamina = Stats.MaxStamina;
+        try
+        {
+            PlayerFile.Load(ref CurrentStats, Application.dataPath + "/Save/Player.ini");
+        }
+        catch (Exception)
+        {
+            CurrentStats.Stamina = Stats.MaxStamina;
+            CurrentStats.Sanity = Stats.MaxSanity;
+        }
     }
 
     private void Update()
@@ -95,5 +143,7 @@ public class PlayerController : MonoBehaviour
         MouseLook.LookRotation(transform, Camera.main.transform);
 
         HandleSprint();
+        HandleSanity();
+        HandleShooting();
     }
 }
