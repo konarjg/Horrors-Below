@@ -64,6 +64,23 @@ public class PlayerController : MonoBehaviour
 
     }
 
+    private void HandleShooting()
+    {
+        if (Input.GetMouseButtonDown(0))
+        {
+            var ray = new Ray(transform.position, transform.forward * 10f); //TODO Range based on weapon
+            var hit = new RaycastHit();
+            
+            if (Physics.Raycast(ray, out hit))
+            {
+                if (hit.collider.tag == "Enemy")
+                    Debug.LogError("ENEMY HIT");
+            }
+
+            //TODO ammunition decrease and condition, shot effects and sound
+        }
+    }
+
     private void HandleSprint()
     {
         if (CurrentStats.Stamina > 0f && !SprintOnCooldown)
@@ -127,5 +144,6 @@ public class PlayerController : MonoBehaviour
 
         HandleSprint();
         HandleSanity();
+        HandleShooting();
     }
 }
