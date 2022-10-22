@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityStandardAssets.Characters.FirstPerson;
 using Random = UnityEngine.Random;
@@ -95,13 +96,28 @@ public class PlayerController : MonoBehaviour
         CurrentStats.Sanity = Mathf.Clamp(CurrentStats.Sanity, 0f, Stats.MaxSanity);
     }
 
+    private void OnApplicationQuit()
+    {
+        if (!Directory.Exists(Application.dataPath + "/Save"))
+            Directory.CreateDirectory(Application.dataPath + "/Save");
+
+        PlayerFile.Save(CurrentStats, Application.dataPath + "/Save/Player.ini");
+    }
+
     private void Start()
     {
         Movement.Init(gameObject);
         MouseLook.Init(transform, Camera.main.transform);
 
-        CurrentStats.Stamina = Stats.MaxStamina;
-        CurrentStats.Sanity = Stats.MaxSanity;
+        try
+        {
+            PlayerFile.Load(ref CurrentStats, Application.dataPath + "/Save/Player.ini");
+        }
+        catch (Exception)
+        {
+            CurrentStats.Stamina = Stats.MaxStamina;
+            CurrentStats.Sanity = Stats.MaxSanity;
+        }
     }
 
     private void Update()
