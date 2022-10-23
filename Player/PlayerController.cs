@@ -59,26 +59,89 @@ public class PlayerController : MonoBehaviour
     private bool IsSprinting = false;
     private bool SprintOnCooldown;
 
+    [SerializeField]
+    private Weapon CurrentWeapon;
+    private bool IsShooting;
+    private bool IsReloading;
+    private Vector3 CameraAngles;
+
     private void Hallucinate()
     {
 
     }
 
+    private IEnumerator Reload() 
+    {
+        IsReloading = true;
+
+        yield return new WaitForSecondsRealtime(CurrentWeapon.Stats.ReloadTime);
+
+        if (CurrentWeapon.Ammunition >= CurrentWeapon.Stats.CapSize)
+        {
+            CurrentWeapon.AmmunitionLoaded = CurrentWeapon.Stats.CapSize;
+            CurrentWeapon.Ammunition -= CurrentWeapon.Stats.CapSize;
+        }
+        else
+        {
+            CurrentWeapon.AmmunitionLoaded = CurrentWeapon.Ammunition;
+            CurrentWeapon.Ammunition = 0;
+        }
+
+        IsReloading = false;
+    }
+
+    private IEnumerator Shoot()
+    {
+        IsShooting = true;
+
+        if (CurrentWeapon.Stats.IsAutomatic)
+            yield return new WaitForSecondsRealtime(1f / CurrentWeapon.Stats.FireRate);
+        else
+            yield return null;
+
+        var angles = new Vector3(0f, 0f, 0f);
+        var knock = CurrentWeapon.Stats.Knockback;
+        var recoil = CurrentWeapon.Stats.Recoil;
+
+        angles.x -= knock;
+        angles.y += Random.Range(-recoil, recoil) + Random.Range(-0.3f, 0.3f);
+
+        CameraAngles = angles;
+
+        var ray = new Ray(Camera.main.transform.position, Camera.main.transform.forward);
+        RaycastHit hit;
+
+        if (Physics.Raycast(ray, out hit, CurrentWeapon.Stats.Range))
+        {
+            if (hit.collider.tag == "Enemy")
+                Debug.LogError("ENEMY HIT");
+        }
+
+        --CurrentWeapon.AmmunitionLoaded;
+        //TODO shot effects and sound
+
+        if (!CurrentWeapon.Stats.IsAutomatic)
+        {
+            var angles2 = Quaternion.Euler(MouseLook.m_CameraTargetRot.eulerAngles + angles);
+            MouseLook.m_CameraTargetRot = Quaternion.Slerp(MouseLook.m_CameraTargetRot, angles2, 10 * Time.smoothDeltaTime);
+        }
+
+        IsShooting = false;
+    }
+
+
     private void HandleShooting()
     {
-        if (Input.GetMouseButtonDown(0))
-        {
-            var ray = new Ray(transform.position, transform.forward * 10f); //TODO Range based on weapon
-            var hit = new RaycastHit();
-            
-            if (Physics.Raycast(ray, out hit))
-            {
-                if (hit.collider.tag == "Enemy")
-                    Debug.LogError("ENEMY HIT");
-            }
+        var input = CurrentWeapon.Stats.IsAutomatic ? Input.GetMouseButton(0) : Input.GetMouseButtonDown(0);
 
-            //TODO ammunition decrease and condition, shot effects and sound
-        }
+        if (input && CurrentWeapon.AmmunitionLoaded != 0 && !IsShooting)
+            StartCoroutine(Shoot());
+
+        if (!input && CurrentWeapon.Stats.IsAutomatic)
+            CameraAngles = new Vector3(0f, 0f, 0f);
+
+        if (Input.GetKeyDown(KeyCode.R) && CurrentWeapon.AmmunitionLoaded == 0 && CurrentWeapon.Ammunition != 0 && !IsReloading)
+            StartCoroutine(Reload());
     }
 
     private void HandleSprint()
@@ -134,6 +197,15 @@ public class PlayerController : MonoBehaviour
         {
             CurrentStats.Stamina = Stats.MaxStamina;
             CurrentStats.Sanity = Stats.MaxSanity;
+        }
+    }
+
+    private void LateUpdate()
+    {
+        if (IsShooting && CurrentWeapon.Stats.IsAutomatic)
+        {
+            var angles = Quaternion.Euler(MouseLook.m_CameraTargetRot.eulerAngles + CameraAngles);
+            MouseLook.m_CameraTargetRot = Quaternion.Slerp(MouseLook.m_CameraTargetRot, angles, 10 * Time.smoothDeltaTime);
         }
     }
 
