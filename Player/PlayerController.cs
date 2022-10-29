@@ -65,6 +65,8 @@ public class PlayerController : MonoBehaviour
     private bool IsReloading;
     private Vector3 CameraAngles;
 
+    private bool IsCrouching;
+
     private void Hallucinate()
     {
 
@@ -146,7 +148,7 @@ public class PlayerController : MonoBehaviour
 
     private void HandleSprint()
     {
-        if (CurrentStats.Stamina > 0f && !SprintOnCooldown)
+        if (CurrentStats.Stamina > 0f && !SprintOnCooldown && !IsCrouching)
             IsSprinting = Input.GetKey(KeyCode.LeftShift);
         else
         {
@@ -174,6 +176,37 @@ public class PlayerController : MonoBehaviour
             Hallucinate();
 
         CurrentStats.Sanity = Mathf.Clamp(CurrentStats.Sanity, 0f, Stats.MaxSanity);
+    }
+
+    private void HandleCrouching()
+    {
+        if (Input.GetKey(KeyCode.LeftControl))
+            IsCrouching = true;
+        else
+            IsCrouching = false;
+
+        if (IsCrouching)
+        {
+            var position = transform.position;
+            var controller = GetComponent<CharacterController>();
+
+            controller.height = 0.5f;
+            position.y = 0.25f;
+            transform.position = position;
+
+            IsSprinting = false;
+        }
+        else
+        {
+            var position = transform.position;
+            var controller = GetComponent<CharacterController>();
+
+            controller.height = 2f;
+            position.y = 1f;
+            transform.position = position;
+        }
+
+        //TODO decrease volume of walking sounds
     }
 
     private void OnApplicationQuit()
@@ -211,11 +244,18 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
-        Movement.Tick(IsSprinting ? Stats.SprintSpeed : Stats.WalkSpeed);
+        if (IsSprinting)
+            Movement.Tick(Stats.SprintSpeed);
+        else if (IsCrouching)
+            Movement.Tick(Stats.WalkSpeed / 2f);
+        else
+            Movement.Tick(Stats.WalkSpeed);
+
         MouseLook.LookRotation(transform, Camera.main.transform);
 
         HandleSprint();
         HandleSanity();
         HandleShooting();
+        HandleCrouching();
     }
 }
