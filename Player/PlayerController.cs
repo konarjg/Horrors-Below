@@ -105,6 +105,9 @@ public class PlayerController : MonoBehaviour
         var knock = CurrentWeapon.Stats.Knockback;
         var recoil = CurrentWeapon.Stats.Recoil;
 
+        if (IsCrouching)
+            recoil /= 2f;
+
         angles.x -= knock;
         angles.y += Random.Range(-recoil, recoil) + Random.Range(-0.3f, 0.3f);
 
